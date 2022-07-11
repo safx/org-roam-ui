@@ -288,7 +288,29 @@ TODO: Be able to delete individual nodes."
         ;; Heading nodes have level 1 and greater.
         (goto-char (org-roam-node-point node))
         (org-narrow-to-element))
+      (org-with-point-at 1
+        (while (re-search-forward org-link-bracket-re nil t)
+          (org-roam-expand-abbrev-link-at-point)))
       (buffer-substring-no-properties (buffer-end -1) (buffer-end 1)))))
+
+(defun org-roam-expand-abbrev-link-at-point (&optional link)
+  (save-excursion
+    (save-match-data
+      (let* ((link (or link (org-element-context)))
+             (type (org-element-property :type link))
+             (path (org-element-property :path link))
+             (begin (org-element-property :begin link))
+             (end (org-element-property :end link))
+             (desc (and begin end
+                        (buffer-substring-no-properties begin end))))
+        (goto-char (org-element-property :begin link))
+        (when (and (org-in-regexp org-link-any-re 1)
+                   (string-equal type "https")
+                   desc
+                   (string-match-p "\\[\\[[-_a-zA-Z0-9]+:[-_a-zA-Z0-9]+\\]\\]" desc))
+            (replace-match (org-link-make-string
+                            (concat type ":" path)
+                            (concat (substring desc 2 (- (length desc) 3))))))))))
 
 (defun org-roam-ui--send-text (id ws)
   "Send the text from org-node ID through the websocket WS."
